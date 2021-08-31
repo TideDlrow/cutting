@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>参数提交</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-KyZXEAg3QhqLMpG8r+8fhAXLRk2vvoC2f3B09zVXn8CA5QIVfZOJ3BCsw2P0p/We" crossorigin="anonymous">
+</head>
+<body>
+<div class="mb-3">
+    <label for="" class="corm-label">视频文件</label>
+    <div class="row">
+        <div class="col-lg-10">
+            <input type="file" id="file" class="form-control">
+        </div>
+        <div class="col-lg-2">
+            <button class="btn btn-primary" id="submit_file">点击上传文件</button>
+        </div>
+    </div>
+    <div class="progress" style="width: 83%">
+        <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 0;"
+             aria-valuenow="0" aria-valuemax="100">0%
+        </div>
+    </div>
+    <div class="form-text">先上传文件，再填写切分点</div>
+</div>
+<div class="mb-3">
+    <label for="" class="form-label">视频切分点</label>
+    <textarea disabled id="video_time_seg" type="text" class="form-control" rows="2"></textarea>
+    <div class="form-text">以逗号分割。可以用end来代表视频末尾。如00:00:00,00:16:09,00:16:09,end</div>
+</div>
+<div class="mb-3">
+    <label for="" class="form-label">音频切分点</label>
+    <textarea disabled id="audio_time_seg" type="text" class="form-control" rows="2"></textarea>
+    <div class="form-text">以逗号分割。可以用end来代表视频末尾。如00:00:00,00:16:09,00:16:09,end</div>
+</div>
+<button class="btn btn-primary" id="submit" disabled>请先上传文件</button>
+<br>
+<h1>下载链接生成处</h1>
+<div id="generator-link">
+
+</div>
+{#<a href="/downloadFile?fileName=20210805-夏令营.mp4">下载</a>#}
+<div style="position: fixed;bottom: 0;width: 100%">
+    <div style="display: flex;justify-content: center;align-content: center;">
+        <a href="" onclick="instructions()">使用说明和注意事项</a>
+    </div>
+</div>
+</body>
+<script>
+    let fileName = "";
+    let isUpload = false;
+
+    async function upload() {
+        const inp = document.getElementById("file");
+        if (inp.files.length === 0) {
+            alert("请选择上传文件")
+            return false;
+        }
+        const formData = new FormData();
+        formData.append('file', inp.files[0]);
+        const xhr = new XMLHttpRequest();
+        xhr.open("post", "/uploadFile/", true);
+        xhr.timeout = 60 * 1000;
+        xhr.onload = function () {
+            console.log("上传完成")
+        }
+        xhr.onerror = function () {
+            alert("请求失败")
+        }
+        xhr.upload.onprogress = function (evt) {
+            if (evt.lengthComputable) {
+                const current = Math.round(evt.loaded / evt.total * 100)
+                change_progress_value(current)
+                if (current === 100) {
+                    fileName = document.getElementById("file").files[0].name
+                    //把上传状态改为true,表示已经上传了文件
+                    isUpload = true;
+                    //文件上传完成后把禁用的交互解开
+                    release_areas()
+                }
+            }
+        }
+        xhr.send(formData);
+
+    }
+
+    /**
+     * 点击提交的事件
+     */
+    function submit() {
+        //先对各个输入框进行验证
+        if (!isUpload) {
+            alert("请先上传文件")
+            return false;
+        }
+        const video_time_seg_dom = document.querySelector("#video_time_seg");
+        const video_value = video_time_seg_dom.value;
+        const video_time_seg = video_value.split(",")
+
+        const audio_time_seg_dom = document.querySelector("#audio_time_seg");
+        let audio_value = audio_time_seg_dom.value
+        let audio_time_seg = audio_value.split(",")
+        if (audio_value.length === 0 && video_value.length === 0) {
+            alert("视频切分点，音频切分点至少得填一个！")
+            return false
+        }
+        if (video_value.length !== 0 && video_time_seg.length % 2 !== 0) {
+            alert("视频切分点的个数需要是偶数")
+            return false
+        }
+
+        if (audio_value.length !== 0 && audio_time_seg.length % 2 !== 0) {
+            alert("音频切分点的个数需要是偶数")
+            return false
+        }
+        const submit = document.getElementById("submit")
+        submit.innerText = "正在生成下载链接..."
+        submit.disabled = true
+        //验证完成后把文件名、切分点传到后台
+        const url = "/cutVideo/"
+        const param = {
+            'file_name': fileName,
+            'video_time_seg': video_time_seg.join(","),
+            'audio_time_seg': audio_time_seg.join(",")
+        }
+        fetch(url, {
+            method: "POST",
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(param)
+        })
+            .then(res => res.json())
+            .then(json => {
+                const {audio_seg_name, video_seg_name} = json
+                const link_area = document.querySelector("#generator-link")
+                for (const name of audio_seg_name) {
+                    const a = document.createElement('a')
+                    a.href = '/downloadFile?fileName=' + name
+                    a.innerText = name
+                    const div = document.createElement('div')
+                    div.appendChild(a)
+                    link_area.appendChild(div)
+                }
+                for (const name of video_seg_name) {
+                    const a = document.createElement('a')
+                    a.href = '/downloadFile?fileName=' + name
+                    a.innerText = name
+                    const div = document.createElement('div')
+                    div.appendChild(a)
+                    link_area.appendChild(div)
+                }
+                const submit = document.getElementById("submit")
+                submit.innerText = "确定提交"
+            })
+
+
+    }
+
+    /**
+     * 改变进度条的进度显示
+     * @param value
+     */
+    function change_progress_value(value) {
+        const progress_bar = document.querySelector("#progress-bar")
+        progress_bar.style.width = value + "%"
+        progress_bar.innerText = value + "%"
+    }
+
+    /**
+     * 把禁用的组件打开
+     */
+    function release_areas() {
+        const submit = document.getElementById("submit")
+        submit.innerText = "确定提交"
+        submit.disabled = false
+        const video_area = document.querySelector("#video_time_seg")
+        video_area.disabled = false;
+        const audio_area = document.querySelector("#audio_time_seg")
+        audio_area.disabled = false;
+    }
+
+    document.getElementById("submit_file").onclick = upload
+    document.getElementById("submit").onclick = submit
+
+    function instructions() {
+        const content = "文件上传的是直接以文件名存储在对应的保存路径下的，所以上传同名文件会覆盖原来存在的文件；\n" +
+            "同时上传多个文件，只会以第一个为准，其它的都会忽略。\n" +
+            "如果有多个视频需要剪切，完成一个后刷新页面再进行文件上传。\n";
+        alert(content);
+    }
+
+</script>
+</html>
