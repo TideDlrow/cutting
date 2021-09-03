@@ -25,22 +25,18 @@
     <div class="form-text">先上传文件，再填写切分点</div>
 </div>
 <div class="mb-3">
-    <label for="" class="form-label">视频切分点</label>
-    <textarea disabled id="video_time_seg" type="text" class="form-control" rows="2"></textarea>
-    <div class="form-text">以逗号分割。可以用end来代表视频末尾。如00:00:00,00:16:09,00:16:09,end</div>
-</div>
-<div class="mb-3">
-    <label for="" class="form-label">音频切分点</label>
-    <textarea disabled id="audio_time_seg" type="text" class="form-control" rows="2"></textarea>
-    <div class="form-text">以逗号分割。可以用end来代表视频末尾。如00:00:00,00:16:09,00:16:09,end</div>
+    <label for="" class="form-label">切分点输入处</label>
+    <textarea disabled id="cut-node" type="text" class="form-control" rows="2"></textarea>
+    <div class="form-text">其格式为 V00:15:00A00:30:00,00:40:00V01:30:00A 字母两端的数字代表视(音)频段的起止,V代表视频,A代表音频。
+        所以示例代表的是 00:00:00~00:15:00，00:40:00~1:30:00为视频段 00:15:00~00:30:00,01:30:00~end为音频段。起始00:00:00可以省略，视频末尾可以用end代替
+        ，也可以省略。但像这种格式00:10:00Vend,00:00:00A1:00:00 中的起始和末尾就不能省略
+    </div>
 </div>
 <button class="btn btn-primary" id="submit" disabled>请先上传文件</button>
 <br>
 <h1>下载链接生成处</h1>
 <div id="generator-link">
-
 </div>
-{#<a href="/downloadFile?fileName=20210805-夏令营.mp4">下载</a>#}
 <div style="position: fixed;bottom: 0;width: 100%">
     <div style="display: flex;justify-content: center;align-content: center;">
         <a href="" onclick="instructions()">使用说明和注意事项</a>
@@ -61,18 +57,19 @@
         formData.append('file', inp.files[0]);
         const xhr = new XMLHttpRequest();
         xhr.open("post", "/uploadFile/", true);
-        xhr.timeout = 60 * 1000;
+        xhr.timeout = 10 * 60 * 1000;
         xhr.onload = function () {
             console.log("上传完成")
         }
-        xhr.onerror = function () {
+        xhr.onerror = function (env) {
+            console.log(env);
             alert("请求失败")
         }
         xhr.upload.onprogress = function (evt) {
             if (evt.lengthComputable) {
                 const current = Math.round(evt.loaded / evt.total * 100)
                 change_progress_value(current)
-                if (current === 100) {
+                if (current >= 100) {
                     fileName = document.getElementById("file").files[0].name
                     //把上传状态改为true,表示已经上传了文件
                     isUpload = true;
@@ -94,25 +91,39 @@
             alert("请先上传文件")
             return false;
         }
-        const video_time_seg_dom = document.querySelector("#video_time_seg");
-        const video_value = video_time_seg_dom.value;
-        const video_time_seg = video_value.split(",")
-
-        const audio_time_seg_dom = document.querySelector("#audio_time_seg");
-        let audio_value = audio_time_seg_dom.value
-        let audio_time_seg = audio_value.split(",")
-        if (audio_value.length === 0 && video_value.length === 0) {
-            alert("视频切分点，音频切分点至少得填一个！")
+        const cut_node_dom = document.querySelector("#cut-node");
+        let cut_node_value = cut_node_dom.value.trim();
+        if (cut_node_value === "") {
+            alert("请输入切分点！")
             return false
         }
-        if (video_value.length !== 0 && video_time_seg.length % 2 !== 0) {
-            alert("视频切分点的个数需要是偶数")
-            return false
+        cut_node_value = cut_node_value.toUpperCase();
+        const splitByComma = cut_node_value.split(',');
+        //按V和A分割后的字符串，同时保留分割符(即保留字符V和A)
+        let cut_node_split = [];
+        for (let seg of splitByComma) {
+            const temp = seg.split(/(V|A)/g)
+            cut_node_split = cut_node_split.concat(temp);
         }
-
-        if (audio_value.length !== 0 && audio_time_seg.length % 2 !== 0) {
-            alert("音频切分点的个数需要是偶数")
-            return false
+        //如果省略了00:00:00,则补上
+        if (cut_node_split[0] === "") {
+            cut_node_split[0] = '00:00:00'
+        }
+        //如果省略了end,则补上
+        if (cut_node_split[cut_node_split.length - 1] === '') {
+            cut_node_split[cut_node_split.length - 1] = 'END'
+        }
+        let video_time_seg = [];
+        let audio_time_seg = [];
+        for (let i = 0; i < cut_node_split.length; i++) {
+            //把这个字母两侧的时间点放入数组中
+            if (cut_node_split[i] === 'V') {
+                video_time_seg.push(cut_node_split[i - 1])
+                video_time_seg.push(cut_node_split[i + 1])
+            } else if (cut_node_split[i] === 'A') {
+                audio_time_seg.push(cut_node_split[i - 1])
+                audio_time_seg.push(cut_node_split[i + 1])
+            }
         }
         const submit = document.getElementById("submit")
         submit.innerText = "正在生成下载链接..."
@@ -175,10 +186,8 @@
         const submit = document.getElementById("submit")
         submit.innerText = "确定提交"
         submit.disabled = false
-        const video_area = document.querySelector("#video_time_seg")
-        video_area.disabled = false;
-        const audio_area = document.querySelector("#audio_time_seg")
-        audio_area.disabled = false;
+        const cut_node = document.querySelector("#cut-node")
+        cut_node.disabled = false;
     }
 
     document.getElementById("submit_file").onclick = upload
@@ -187,7 +196,8 @@
     function instructions() {
         const content = "文件上传的是直接以文件名存储在对应的保存路径下的，所以上传同名文件会覆盖原来存在的文件；\n" +
             "同时上传多个文件，只会以第一个为准，其它的都会忽略。\n" +
-            "如果有多个视频需要剪切，完成一个后刷新页面再进行文件上传。\n";
+            "如果有多个视频需要剪切，完成一个后刷新页面再进行文件上传。\n" +
+            "切分点都默认填写是正确的，所以不要填写错误的参数";
         alert(content);
     }
 

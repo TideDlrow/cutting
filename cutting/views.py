@@ -47,8 +47,7 @@ def downloadFile(request):
     file = open(file_path, 'rb')
     response = FileResponse(file)
     response['Content-Type'] = 'application/octet-stream'
-    # response['Content-Disposition'] = 'attachment;filename="{}"'.format(file_name)
-    temp = 'attachment;filename*=utf-8{}'.format(escape_uri_path(file_name))
+    temp = 'attachment;filename={}'.format(escape_uri_path(file_name))
     response['Content-Disposition'] = temp
     return response
 
@@ -66,7 +65,6 @@ def uploadFile(request):
         if not os.path.exists(DOWNLOAD_DIR):
             os.mkdir(DOWNLOAD_DIR)
         destination = open(os.path.join(DOWNLOAD_DIR, file.name), 'wb+')
-        print("upload file {}".format(file.name))
         for chunk in file.chunks():
             destination.write(chunk)
         destination.close()

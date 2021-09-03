@@ -12,6 +12,7 @@ def cut(file_path, video_time_seg, audio_time_seg, file_prefix=None):
     :param audio_time_seg: 音频时间段 数组(长度必须是偶数) 可以用end来代表视频的末尾
     :return: 视频和音频片段文件名数组组成的元组
     """
+    print(audio_time_seg)
     if file_prefix is None:
         file_prefix = int(time.time())
     cmd_end_time = "ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 " \
@@ -25,9 +26,9 @@ def cut(file_path, video_time_seg, audio_time_seg, file_prefix=None):
         for i in range(0, len(video_time_seg), 2):
             begin_time = video_time_seg[i]
             end_time = video_time_seg[i + 1]
-            if begin_time == config.END_TIME_ALIAS:
+            if begin_time.lower() == config.END_TIME_ALIAS:
                 begin_time = video_end_time
-            if end_time == config.END_TIME_ALIAS:
+            if end_time.lower() == config.END_TIME_ALIAS:
                 end_time = video_end_time
             # 每个片段的文件名
             seg_name = "{}-{}-video.mp4".format(file_prefix, int(i / 2))
@@ -44,9 +45,9 @@ def cut(file_path, video_time_seg, audio_time_seg, file_prefix=None):
         for i in range(0, len(audio_time_seg), 2):
             begin_time = audio_time_seg[i]
             end_time = audio_time_seg[i + 1]
-            if begin_time == config.END_TIME_ALIAS:
+            if begin_time.lower() == config.END_TIME_ALIAS:
                 begin_time = video_end_time
-            if end_time == config.END_TIME_ALIAS:
+            if end_time.lower() == config.END_TIME_ALIAS:
                 end_time = video_end_time
             seg_name = "{}-{}-audio.mp4".format(file_prefix, int(i / 2))
             load_path = os.path.join(config.DOWNLOAD_DIR, seg_name)
