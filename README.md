@@ -6,7 +6,7 @@ config.py 文件配置了上传文件的保存路径，切分后的文件也会�
 
 页面主要的逻辑在views.py中
 
-切分主要是通过ffmpeg完成的，所以确保机器安装了ffmpeg，和其有关的主要代码在utils.py中。
+切分主要是通过`ffmpeg`完成的，所以确保机器安装了`ffmpeg`，和其有关的主要代码在utils.py中。
 
 需要注意的是
 
@@ -129,7 +129,8 @@ http {
 ```shell
 uwsgi --ini uwsgi.ini
 ```
-再启动nginx(如果已经启动，则用以下命令让其重新读取配置文件)
+再启动nginx `sudo nginx`
+如果已经启动，则用以下命令让其重新读取配置文件
 ```shell
 nginx -s reload
 ```
