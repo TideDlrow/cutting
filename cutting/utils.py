@@ -32,7 +32,7 @@ def cut(file_path, video_time_seg, audio_time_seg, file_prefix=None):
                 end_time = video_end_time
             # 每个片段的文件名
             seg_name = "{}-{}-video.mp4".format(file_prefix, int(i / 2))
-            load_path = os.path.join(config.DOWNLOAD_DIR, seg_name)
+            load_path = os.path.join(config.UPLOAD_DIR, seg_name)
             cmd = "ffmpeg -y -i {} -ss {} -to {}  -c copy -copyts {} -loglevel quiet".format(file_path, begin_time,
                                                                                              end_time,
                                                                                              load_path)
@@ -50,7 +50,7 @@ def cut(file_path, video_time_seg, audio_time_seg, file_prefix=None):
             if end_time.lower() == config.END_TIME_ALIAS:
                 end_time = video_end_time
             seg_name = "{}-{}-audio.mp4".format(file_prefix, int(i / 2))
-            load_path = os.path.join(config.DOWNLOAD_DIR, seg_name)
+            load_path = os.path.join(config.UPLOAD_DIR, seg_name)
             cmd = "ffmpeg -y -i {} -ss {} -to {}  -acodec copy -vn {} -loglevel quiet".format(file_path, begin_time,
                                                                                               end_time,
                                                                                               load_path)
@@ -59,7 +59,7 @@ def cut(file_path, video_time_seg, audio_time_seg, file_prefix=None):
     return video_seg_name, audio_seg_name
 
 
-def download(link, file_name=None, download_dir=config.DOWNLOAD_DIR):
+def download(link, file_name=None, download_dir=config.UPLOAD_DIR):
     """
 
     :param {str} link: 下载链接
@@ -81,3 +81,22 @@ def download(link, file_name=None, download_dir=config.DOWNLOAD_DIR):
     with open(file_path, "wb") as code:
         code.write(file.content)
     return file_path
+
+
+def remove_previous_files(dir, time):
+    """
+    删除给定目录下，创建时间在time之前的文件
+    :param dir: 指定的目录
+    :param time: 时间戳，单位为秒
+    :return:
+    """
+    file_names = os.listdir(dir)
+    file_list = [os.path.join(dir, file_name) for file_name in file_names]
+    for file in file_list:
+        # 判断是否为文件，如果不是文件则不进行操作
+        if os.path.isfile(file):
+            # 获取文件的创建时间
+            file_create_time = os.path.getctime(file)
+            # 若文件创建时间小于给定的时间，则删除
+            if file_create_time < time:
+                os.remove(file)
